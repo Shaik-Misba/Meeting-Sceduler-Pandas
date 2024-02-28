@@ -14,7 +14,7 @@ public class MeetingDTO {
         private integer meetingId;
 
         @NotNull(message ="{meeting.schedulername.notpresnet}")
-        @Pattern(regexp ="[A-Za-z]+[\s][A-Za-z]+", message ="{meeting.schedulername.invallid}")
+        @Pattern(regexp ="[A-Za-z]+[\s][A-Za-z]+", message ="{meeting.schedulername.invalid}")
         private String schedulerName;
 
         @NotNull(message ="{meeting.teamname.notpresent}")
@@ -84,5 +84,70 @@ public class MeetingDTO {
 	   		}
       			return meetingDTO;
 	 	}
-   
+
+     		@Override
+       		public MeetingDTO scheduleMeeting(MeetingDTO meetingDTO) throws meetingSchedulerException {
+	 		MeetingValidator.validateMeeting(meetingDTO);
+    			List<*Meeting> l = meetingRepository.findByMeetingdate(meetingDTO.getMeetingDate());
+       			if(!l.isEmpty())
+	  		{
+     				throw new MeetingSchedulerException("MeetingService.MEETING_DATE_UNAVAILABLE");
+	 		}
+    			List<Meeting> l2=meetingRepository.findByTeamName(meetingDTO.getTeamName());
+       			if(!l2.isEmpty())
+	  		{
+     				throw new MeetingSchedulerException("MeetingService.TEAM_UNAVAILABLE");
+	 		}
+    			Meeting m=MeetingDTO.prepareEntity(meetingDTO);
+       			Meeting m2 = meetingRepository.save(m);
+	  		meetingDTO.setMeetingId(m2.getMeetingId());
+     			return meetingDTO;
+		}
+  }   
+</code></p>
+
+**MeetingAPI.java**
+<p><code>
+	@RestController
+	@Validated
+	@RequestMapping(value="api")
+	public class MeetingAPI {
+		@Autowired
+		private MeetingService meetingService;
+
+   		@GetMapping(value="meetings/{schedulerName}")
+     		public ResponseEntity<*List<*MeetingDTO>> getAllMeetingsOfScheduler(@PathVariable @Pattern(regexp ="[A-Za-z]+[\s][A-Za-z]+", message ="{meeting.schedulername.invalid}") throws MeetingSchedulerException {
+       			return new ResponseEntity<*List<*MeetingDTO>>(meetingService.getAllMeetingsOfScheduler(schedulerName),HttpStatuse.OK);
+	 	}
+
+   		@PostMapping(value="meetings")
+     		public ResponseEntity<*MeetingDTO> scheduleMeeting(@RequestBody MeetingDTO meetingDTO) throws MeetingSchedulerException {
+       			return new ResponseEntity<MeetingDTO>(meetingService.scheduleMeeting(meetingDTO),HttpStatuse.CREATED);
+	  }
+   }
+</code></p>
+
+**ExceptionControllerAdvice.java**
+<p><code>
+	@RestControllerAdvice
+	public class ExceptionControllerAdvice {
+		private static final Log ----------->
+		@Autowired
+		private Environment environment;
+
+  		@ExceptionHandler(MeetingSchedulerException.class)
+    		public ResponseEntity<ErrorInfo> meetingSchedulerExceptionHandler()--->{
+      			---------
+	 	}
+
+    		@ExceptionHandler(Exception.class)
+      		public ResponseEntity<*ErrorInfo> generalExceptionHandler(Exception exception) {
+			---------
+		}
+
+  		@ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class})
+    		public ResponseEntity<*ErrorInfo> validatorExceptionHandler(Exception exception) {
+      			-----------
+	 	}
+   	}
 </code></p>
